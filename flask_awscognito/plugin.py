@@ -1,7 +1,7 @@
 from functools import wraps
 
 from flask import _app_ctx_stack, abort, request, make_response, jsonify, g
-from flask_awscognito.utils import extract_access_token, get_state
+from flask_awscognito.utils import extract_access_token, extract_access_token_cookie, get_state
 from flask_awscognito.services import cognito_service_factory, token_service_factory
 from flask_awscognito.exceptions import FlaskAWSCognitoError, TokenVerifyError
 from flask_awscognito.constants import (
@@ -13,6 +13,8 @@ from flask_awscognito.constants import (
     CONFIG_KEY_DOMAIN,
     CONFIG_KEY_REGION,
     CONFIG_KEY_POOL_CLIENT_SECRET,
+    CONFIG_KEY_PREFER_COOKIE_TOKEN,
+    CONFIG_KEY_COOKIE_NAME
 )
 
 
@@ -43,6 +45,8 @@ class AWSCognitoAuthentication:
         self.redirect_url = app.config[CONFIG_KEY_REDIRECT_URL]
         self.region = app.config[CONFIG_KEY_REGION]
         self.domain = app.config[CONFIG_KEY_DOMAIN]
+        self.prefer_cookie_token = app.config[CONFIG_KEY_PREFER_COOKIE_TOKEN]
+        self.cookie_name = app.config[CONFIG_KEY_COOKIE_NAME]
 
     @property
     def token_service(self):
@@ -90,8 +94,10 @@ class AWSCognitoAuthentication:
     def authentication_required(self, view):
         @wraps(view)
         def decorated(*args, **kwargs):
-
-            access_token = extract_access_token(request.headers)
+            if self.cookie_name is not None and self.prefer_cookie_token is not None:
+                access_token = extract_access_token_cookie(request.headers, self.cookie_name)
+            else:
+                access_token = extract_access_token(request.headers)
             try:
                 self.token_service.verify(access_token)
                 self.claims = self.token_service.claims
