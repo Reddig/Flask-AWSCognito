@@ -104,7 +104,7 @@ class AWSCognitoAuthentication:
                 g.cognito_claims = self.claims
             except TokenVerifyError as e:
                 _ = request.data
-                abort(make_response(jsonify(message=str(e)), 401))
+                abort(401, str(e))
 
             return view(*args, **kwargs)
 
